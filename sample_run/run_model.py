@@ -69,6 +69,7 @@ def main():
 
   parser = argparse.ArgumentParser()
   parser.add_argument("--samples", type=int, default=1000)
+  parser.add_argument("--top-k", type=int, default=1)
   args = parser.parse_args()
 
   graph = load_graph(model_file)
@@ -80,15 +81,20 @@ def main():
   accurate = 0
   for i, filename in enumerate(test_files):
     expected_label = os.path.basename(os.path.dirname(filename)).replace("_", " ")
-    predicted_label, confidence = run_model(graph, labels, filename)
-    if expected_label == predicted_label and confidence > 0.2:
-      accurate += 1
-    print "%d/%d,%s,%s,%s,%.2f" % (
-      i, total, filename[len("../training_images/"):],
-      expected_label, predicted_label, confidence)
-  sys.stderr.write("Accuracy: %d%%\n" % (accurate*100 / (i+1)))
+    top_k = run_model(graph, labels, filename, args.top_k)
+    sys.stdout.write("%d/%d,%s,%s," % (
+      i, total, filename[len("../training_images/"):], expected_label))
+    for predicted_label, confidence in top_k:
+      sys.stdout.write("%s,%s," % (predicted_label, confidence))
+      if expected_label == predicted_label and confidence > 0.2:
+        accurate += 1
+        break
+    sys.stdout.write("\n")
+  sys.stdout.flush()
+  sys.stderr.write("Top-%d Accuracy: %d%%\n" %
+                   (args.top_k, accurate*100 / (i+1)))
 
-def run_model(graph, labels, filename):
+def run_model(graph, labels, filename, k):
 
   t = read_tensor_from_image_file(
       filename,
@@ -108,9 +114,8 @@ def run_model(graph, labels, filename):
     })
   results = np.squeeze(results)
 
-  top_k = results.argsort()[-5:][::-1]
-  i = top_k[0]
-  return labels[i], results[i]
+  top_k = results.argsort()[-k:][::-1]
+  return [(labels[i], results[i]) for i in top_k]
 
 
 if __name__ == "__main__":
