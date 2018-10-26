@@ -2,6 +2,9 @@
 
 import argparse
 import os
+import random
+import sys
+from glob import glob
 
 import numpy as np
 import tensorflow as tf
@@ -57,42 +60,45 @@ def load_labels(label_file):
   return label
 
 
-if __name__ == "__main__":
+def main():
   current_dir = os.path.dirname(os.path.realpath(__file__))
   classifier_data_dir = os.path.join(current_dir, 'testai_model')
 
-  file_name = None
   model_file = os.path.join(classifier_data_dir, 'saved_model.pb')
   label_file = os.path.join(classifier_data_dir, 'saved_model.pbtxt')
-  input_height = 224
-  input_width = 224
-  input_mean = 0
-  input_std = 255
-  threshold = 0.01
-  input_layer = "Placeholder"
-  output_layer = "final_result"
 
   parser = argparse.ArgumentParser()
-  parser.add_argument("--image", help="image to be processed")
+  parser.add_argument("--samples", type=int, default=1000)
   args = parser.parse_args()
 
-  if args.image:
-    file_name = args.image
-
-  if file_name is None:
-    print ('ERROR! Need image to run prediction on. Please add --image <path_to_file>')
-    exit(1)
-
   graph = load_graph(model_file)
-  t = read_tensor_from_image_file(
-      file_name,
-      input_height=input_height,
-      input_width=input_width,
-      input_mean=input_mean,
-      input_std=input_std)
+  labels = load_labels(label_file)
 
-  input_name = "import/%s" % input_layer
-  output_name = "import/%s" % output_layer
+  random.seed(1)
+  test_files = random.sample(glob("../training_images/*/*.jpg"), args.samples)
+  total = len(test_files)
+  accurate = 0
+  for i, filename in enumerate(test_files):
+    expected_label = os.path.basename(os.path.dirname(filename)).replace("_", " ")
+    predicted_label, confidence = run_model(graph, labels, filename)
+    if expected_label == predicted_label and confidence > 0.2:
+      accurate += 1
+    print "%d/%d,%s,%s,%s,%.2f" % (
+      i, total, filename[len("../training_images/"):],
+      expected_label, predicted_label, confidence)
+  sys.stderr.write("Accuracy: %d%%\n" % (accurate*100 / (i+1)))
+
+def run_model(graph, labels, filename):
+
+  t = read_tensor_from_image_file(
+      filename,
+      input_height=224,
+      input_width=224,
+      input_mean=0,
+      input_std=255)
+
+  input_name = "import/Placeholder"
+  output_name = "import/final_result"
   input_operation = graph.get_operation_by_name(input_name)
   output_operation = graph.get_operation_by_name(output_name)
 
@@ -103,11 +109,9 @@ if __name__ == "__main__":
   results = np.squeeze(results)
 
   top_k = results.argsort()[-5:][::-1]
-  labels = load_labels(label_file)
+  i = top_k[0]
+  return labels[i], results[i]
 
-  # Output the results
-  print('Top results:')
-  for i in top_k:
-    if results[i] < threshold:
-        break
-    print('    %s - %f' % (labels[i], results[i]))
+
+if __name__ == "__main__":
+  main()
