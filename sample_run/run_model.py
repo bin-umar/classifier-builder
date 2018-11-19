@@ -70,6 +70,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--samples", type=int, default=1000)
   parser.add_argument("--top-k", type=int, default=1)
+  parser.add_argument("--confidence-threshold", type=float, default=0.2)
   parser.add_argument("--test-images-glob", default=os.path.join(
     current_dir, "../training_images/*/*.jpg"))
   args = parser.parse_args()
@@ -88,7 +89,8 @@ def main():
     sys.stdout.write("%d/%d,%s,%s," % (i, total, filename, expected_label))
     for predicted_label, confidence in top_k:
       sys.stdout.write("%s,%s," % (predicted_label, confidence))
-      if expected_label == predicted_label and confidence > 0.2:
+      if (expected_label == predicted_label and
+              confidence > args.confidence_threshold):
         accurate += 1
         break
     sys.stdout.write("\n")
