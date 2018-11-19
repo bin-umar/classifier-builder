@@ -26,7 +26,8 @@ def read_tensor_from_image_file(file_name,
                                 input_height=299,
                                 input_width=299,
                                 input_mean=0,
-                                input_std=255):
+                                input_std=255,
+                                color=False):
   input_name = "file_reader"
   output_name = "normalized"
   file_reader = tf.read_file(file_name, input_name)
@@ -41,7 +42,10 @@ def read_tensor_from_image_file(file_name,
   else:
     image_reader = tf.image.decode_jpeg(
         file_reader, channels=3, name="jpeg_reader")
-  image_reader = tf.image.grayscale_to_rgb(tf.image.rgb_to_grayscale(image_reader)) # Convert to grayscale
+  if not color:
+    # Convert to grayscale (but still 3 channels, because that is what the
+    # MobileNet model expects)
+    image_reader = tf.image.grayscale_to_rgb(tf.image.rgb_to_grayscale(image_reader))
   float_caster = tf.cast(image_reader, tf.float32)
   dims_expander = tf.expand_dims(float_caster, 0)
   resized = tf.image.resize_bilinear(dims_expander, [input_height, input_width])
@@ -71,6 +75,8 @@ def main():
   parser.add_argument("--samples", type=int, default=1000)
   parser.add_argument("--top-k", type=int, default=1)
   parser.add_argument("--confidence-threshold", type=float, default=0.2)
+  parser.add_argument("--color", action="store_true", help="""Don't convert to
+    greyscale. Note that the training images are already greyscale on disk.""")
   parser.add_argument("--test-images-glob", default=os.path.join(
     current_dir, "../training_images/*/*.jpg"))
   args = parser.parse_args()
@@ -84,8 +90,15 @@ def main():
   accurate = 0
   for i, filename in enumerate(test_files):
     filename = os.path.relpath(filename)
+    image = read_tensor_from_image_file(
+      filename,
+      input_height=224,
+      input_width=224,
+      input_mean=0,
+      input_std=255,
+      color=args.color)
     expected_label = os.path.basename(os.path.dirname(filename)).replace("_", " ")
-    top_k = run_model(graph, labels, filename, args.top_k)
+    top_k = run_model(graph, labels, image, args.top_k)
     sys.stdout.write("%d/%d,%s,%s," % (i, total, filename, expected_label))
     for predicted_label, confidence in top_k:
       sys.stdout.write("%s,%s," % (predicted_label, confidence))
@@ -98,14 +111,7 @@ def main():
   sys.stderr.write("Top-%d Accuracy: %d%%\n" %
                    (args.top_k, accurate*100 / (i+1)))
 
-def run_model(graph, labels, filename, k):
-
-  t = read_tensor_from_image_file(
-      filename,
-      input_height=224,
-      input_width=224,
-      input_mean=0,
-      input_std=255)
+def run_model(graph, labels, image, k):
 
   input_name = "import/Placeholder"
   output_name = "import/final_result"
@@ -114,7 +120,7 @@ def run_model(graph, labels, filename, k):
 
   with tf.Session(graph=graph) as sess:
     results = sess.run(output_operation.outputs[0], {
-        input_operation.outputs[0]: t
+        input_operation.outputs[0]: image
     })
   results = np.squeeze(results)
 
