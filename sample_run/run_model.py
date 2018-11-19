@@ -107,8 +107,7 @@ def main():
         accurate += 1
         break
     sys.stdout.write("\n")
-  sys.stdout.flush()
-  sys.stderr.write("Top-%d Accuracy: %d%%\n" %
+  sys.stdout.write("Top-%d Accuracy: %d%%\n" %
                    (args.top_k, accurate*100 / (i+1)))
 
 def run_model(graph, labels, image, k):
