@@ -70,20 +70,22 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--samples", type=int, default=1000)
   parser.add_argument("--top-k", type=int, default=1)
+  parser.add_argument("--test-images-glob", default=os.path.join(
+    current_dir, "../training_images/*/*.jpg"))
   args = parser.parse_args()
 
   graph = load_graph(model_file)
   labels = load_labels(label_file)
 
   random.seed(1)
-  test_files = random.sample(glob("../training_images/*/*.jpg"), args.samples)
+  test_files = random.sample(glob(args.test_images_glob), args.samples)
   total = len(test_files)
   accurate = 0
   for i, filename in enumerate(test_files):
+    filename = os.path.relpath(filename)
     expected_label = os.path.basename(os.path.dirname(filename)).replace("_", " ")
     top_k = run_model(graph, labels, filename, args.top_k)
-    sys.stdout.write("%d/%d,%s,%s," % (
-      i, total, filename[len("../training_images/"):], expected_label))
+    sys.stdout.write("%d/%d,%s,%s," % (i, total, filename, expected_label))
     for predicted_label, confidence in top_k:
       sys.stdout.write("%s,%s," % (predicted_label, confidence))
       if expected_label == predicted_label and confidence > 0.2:
