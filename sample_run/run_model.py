@@ -71,13 +71,18 @@ def main():
   model_file = os.path.join(classifier_data_dir, 'saved_model.pb')
   label_file = os.path.join(classifier_data_dir, 'saved_model.pbtxt')
 
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--samples", type=int, default=1000)
-  parser.add_argument("--top-k", type=int, default=1)
+  parser = argparse.ArgumentParser(epilog="""Tests the model on the specified
+      test images; prints data in CSV format to stdout.""")
+  parser.add_argument("--samples", type=int, default=1000, help="Default %(default)s")
+  parser.add_argument("--top-k", type=int, default=5, help="Default %(default)s")
   parser.add_argument("--color", action="store_true", help="""Don't convert to
-    greyscale. Note that the training images are already greyscale on disk.""")
-  parser.add_argument("--test-images-glob", default=os.path.join(
-    current_dir, "../training_images/*/*.jpg"))
+    greyscale. Note that the training images are already greyscale on disk, so
+    if you're testing on the training images this provides a speedup without
+    affecting the results.""")
+  parser.add_argument("--test-images-glob",
+                      default=os.path.join(
+                        current_dir, "../training_images/*/*.jpg"),
+                      help="Default: training_images/*/*.jpg")
   args = parser.parse_args()
 
   graph = load_graph(model_file)
