@@ -74,7 +74,6 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--samples", type=int, default=1000)
   parser.add_argument("--top-k", type=int, default=1)
-  parser.add_argument("--confidence-threshold", type=float, default=0.2)
   parser.add_argument("--color", action="store_true", help="""Don't convert to
     greyscale. Note that the training images are already greyscale on disk.""")
   parser.add_argument("--test-images-glob", default=os.path.join(
@@ -87,7 +86,6 @@ def main():
   random.seed(1)
   test_files = random.sample(glob(args.test_images_glob), args.samples)
   total = len(test_files)
-  accurate = 0
   for i, filename in enumerate(test_files):
     filename = os.path.relpath(filename)
     image = read_tensor_from_image_file(
@@ -102,13 +100,7 @@ def main():
     sys.stdout.write("%d/%d,%s,%s," % (i, total, filename, expected_label))
     for predicted_label, confidence in top_k:
       sys.stdout.write("%s,%s," % (predicted_label, confidence))
-      if (expected_label == predicted_label and
-              confidence > args.confidence_threshold):
-        accurate += 1
-        break
     sys.stdout.write("\n")
-  sys.stdout.write("Top-%d Accuracy: %d%%\n" %
-                   (args.top_k, accurate*100 / (i+1)))
 
 def run_model(graph, labels, image, k):
 
