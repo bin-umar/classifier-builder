@@ -89,7 +89,7 @@ def main():
   labels = load_labels(label_file)
 
   random.seed(1)
-  test_files = random.sample(glob(args.test_images_glob), args.samples)
+  test_files = random.sample(sorted(glob(args.test_images_glob)), args.samples)
   total = len(test_files)
   for i, filename in enumerate(test_files):
     filename = os.path.relpath(filename)
